@@ -1,0 +1,25 @@
+ 
+Task 1
+Python Web Scraping
+This task tests your understanding of Python language in applying it to a 
+specific well-defined task of web scraping. 
+Create a Python script for enabling web scraping. 
+Input: Url (medium article) 
+Output: File stored in your local machine with the text from the url
+Submission files: .txt and .py file
+You require the following libraries to accomplish that.
+os - File storing in the local directory of your machine
+requests - Used for sending requests with url as input and get html 
+source as response
+beautifulSoup - Used in parsing html source response
+https://www.crummy.com/software/BeautifulSoup/bs4/doc/
+Steps to be followed to complete this task
+1. Import library
+2. Study the library usage in its documentation
+3. Fill in the blank provided in the Script (Write your code between 
+Code goes here and Code ends here comments)
+4. Run the python script with the given url of medium article
+5. By running the script, a new folder called “scraped_articles” 
+would be created in your local machine. 
+6. Please find the .txt file and upload that as the submission file 
+along with your python file.
