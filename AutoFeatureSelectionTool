@@ -1,0 +1,165 @@
+
+import numpy as np
+import pandas as pd 
+import seaborn as sns
+import matplotlib.pyplot as plt
+import scipy.stats as ss
+from collections import Counter
+import math
+from scipy import stats
+
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.feature_selection import RFE
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.feature_selection import SelectFromModel
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.feature_selection import SelectFromModel
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import SelectFromModel
+from lightgbm import LGBMClassifier
+
+def preprocess_dataset(dataset_path):
+    #Your code starts here (Multiple lines)
+    df = pd.read_csv(dataset_path,encoding="UTF-8")
+    dependent_variable = input("Enter the name of the dependent variable: ")
+    X = df.drop(dependent_variable, axis = 1)
+    y = df[dependent_variable]
+    option = int(input("What type of missing value filling do you want to use?(1 Fill with mean, 2 Fill with median, 3 Fill with mode, 4 Drop missing values): "))
+    if option == 1:
+        X = X.fillna(df.mean())
+    elif option == 2:
+        X = X.fillna(df.median())
+    elif option == 3:
+        X = X.fillna(df.mode())
+    elif option == 4:
+        X = X.dropna()
+    else:
+        raise ValueError("Invalid option")
+    user_input = input("Enter a list of features you want to manually remove separated by spaces: ")
+    user_list = user_input.split()
+    for i in user_list:
+        if i in df.columns:
+           X = X.drop(user_list, axis=1)
+        else :
+            pass   
+    categorical_features = []
+    numerical_features = []
+    for column in df.columns:
+        if df[column].dtype == 'object':
+            categorical_features.append(column)
+        else:
+            numerical_features.append(column)
+    X = pd.get_dummies(X, columns=categorical_features,drop_first=True)  
+    num_feats = int(input("Enter the number of numerical features you want: "))
+    # Your code ends here
+    return X, y, num_feats
+
+def autoFeatureSelector(dataset_path, methods=[]):
+    # Parameters
+    # data - dataset to be analyzed (csv file)
+    # methods - various feature selection methods we outlined before, use them all here (list)
+    
+    # preprocessing
+    X, y, num_feats = preprocess_dataset(dataset_path)
+    
+    def cor_selector(X, y,num_feats):
+    # Your code goes here (Multiple lines)
+        cor_list = []
+        feature_names = X.columns.tolist()
+        for i in feature_names:
+            cor = np.corrcoef(X[i], y)[0,1]
+            cor_list.append(cor)
+        cor_list = [0 if np.isnan(i) else i for i in cor_list] 
+        cor_feature = X.iloc[:,np.argsort(np.abs(cor_list))[-num_feats:]].columns.tolist()   
+        cor_support = [True if i in cor_feature else False for i in feature_names]
+        # Your code ends here
+        return cor_support, cor_feature
+    
+    def chi_squared_selector(X, y, num_feats):
+    # Your code goes here (Multiple lines)
+        bestfeatures = SelectKBest(score_func=chi2, k=num_feats)
+        fit = bestfeatures.fit(X,y)
+        chi_support = bestfeatures.get_support()
+        chi_feature = X.loc[:,chi_support].columns.tolist()
+    # Your code ends here
+        return chi_support, chi_feature  
+   
+    def rfe_selector(X, y, num_feats):
+    # Your code goes here (Multiple lines)
+        scaler = MinMaxScaler()
+        scaler.fit_transform(X)
+        model = LogisticRegression()
+        rfe = RFE(estimator=model,n_features_to_select=num_feats)
+        rfe.fit(X,y)
+        rfe_support = rfe.get_support()
+        rfe_feature = X.loc[:,rfe_support].columns.tolist()
+    # Your code ends here
+        return rfe_support, rfe_feature 
+     
+    def embedded_log_reg_selector(X, y, num_feats):
+    # Your code goes here (Multiple lines)
+        scaler = MinMaxScaler()
+        scaler.fit_transform(X)
+        embedded_lr_selector = SelectFromModel(LogisticRegression(penalty='l2'), max_features=num_feats)
+        embedded_lr_selector.fit(X, y)
+        embedded_lr_support = embedded_lr_selector.get_support()
+        embedded_lr_feature = X.loc[:,embedded_lr_support].columns.tolist()
+            
+        # Your code ends here
+        return embedded_lr_support, embedded_lr_feature
+
+    def embedded_rf_selector(X, y, num_feats):
+        # Your code goes here (Multiple lines)
+        embedded_rf_selector = SelectFromModel(RandomForestClassifier(n_estimators=100, max_features=num_feats))
+        embedded_rf_selector.fit(X, y)
+        embedded_rf_support = embedded_rf_selector.get_support()
+        embedded_rf_feature = X.loc[:,embedded_rf_support].columns.tolist()
+        # Your code ends here
+        return embedded_rf_support, embedded_rf_feature   
+
+    def embedded_lgbm_selector(X, y, num_feats):
+        # Your code goes here (Multiple lines)
+        lgbm_model = LGBMClassifier(n_estimators=100)  
+        feature_selector = SelectFromModel(lgbm_model, max_features=num_feats)
+        feature_selector.fit(X, y)
+        embedded_lgbm_support = feature_selector.get_support()
+        embedded_lgbm_feature = X.columns[embedded_lgbm_support]
+        # Your code ends here
+        return embedded_lgbm_support, embedded_lgbm_feature    
+         
+    # Run every method we outlined above from the methods list and collect returned best features from every method
+    if 'pearson' in methods:
+        cor_support, cor_feature = cor_selector(X, y,num_feats)
+    if 'chi-square' in methods:
+        chi_support, chi_feature = chi_squared_selector(X, y,num_feats)
+    if 'rfe' in methods:
+        rfe_support, rfe_feature = rfe_selector(X, y,num_feats)
+    if 'log-reg' in methods:
+        embedded_lr_support, embedded_lr_feature = embedded_log_reg_selector(X, y, num_feats)
+    if 'rf' in methods:
+        embedded_rf_support, embedded_rf_feature = embedded_rf_selector(X, y, num_feats)
+    if 'lgbm' in methods:
+        embedded_lgbm_support, embedded_lgbm_feature = embedded_lgbm_selector(X, y, num_feats)
+    
+    
+    # Combine all the above feature list and count the maximum set of features that got selected by all methods
+    #### Your Code starts here (Multiple lines)
+    pd.set_option('display.max_rows', None)
+    # put all selection together
+    feature_name = X.columns.tolist()
+    feature_selection_df = pd.DataFrame({'Feature':feature_name, 'Pearson':cor_support, 'Chi-2':chi_support, 'RFE':rfe_support, 'Logistics':embedded_lr_support,
+                                        'Random Forest':embedded_rf_support, 'LightGBM':embedded_lgbm_support})
+    # count the selected times for each feature
+    feature_selection_df['Total'] = np.sum(feature_selection_df, axis=1)
+    best_features = feature_selection_df.loc[feature_selection_df['Total'] == len(methods),'Feature Selection']
+ 
+    
+    #### Your Code ends here
+    return best_features
+
+best_features = autoFeatureSelector(dataset_path="C:/Users/101446094/Downloads/fifa19.csv", methods=['pearson', 'chi-square', 'log-reg', 'rf', 'lgbm'])
+print(best_features)
